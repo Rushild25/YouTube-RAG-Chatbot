@@ -1,0 +1,14 @@
+{
+  "created_at": "2026-03-23T09:25:06.052339Z",
+  "input_json_path": "translated_chunks_en.json",
+  "output_dir": "embedding_artifacts_english",
+  "embedding_backend": "huggingface",
+  "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
+  "chunk_count": 61,
+  "embedding_dim": 384,
+  "video_id": "dQw4w9WgXcQ",
+  "video_url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "source_language": "en",
+  "target_language": "en",
+  "translation_status": "skipped"
+}
