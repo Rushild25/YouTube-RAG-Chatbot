@@ -21,8 +21,6 @@ class Retriever:
                     "video_id": payload.get("video_id"),
                     "chunk_id": payload.get("chunk_id"),
                     "text": payload.get("text", ""),
-                    "start_time": payload.get("start_time"),
-                    "end_time": payload.get("end_time"),
                 }
             )
         return results
