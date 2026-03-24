@@ -46,8 +46,6 @@ def process_video(url: str) -> tuple[str, int] | None:
                     "video_id": video_id,
                     "chunk_id": source_id,
                     "text": chunk.text,
-                    "start_time": chunk.start_time,
-                    "end_time": chunk.end_time,
                     "language_detected": lang_code,
                     "language_label": lang_label,
                 },
@@ -79,10 +77,9 @@ def query_loop(video_id: str) -> None:
 
         answer = generator.generate_answer(question, retrieved)
         print(f"\nAnswer: {answer}")
-        print("\nCitations:")
         for item in retrieved:
             print(
-                f"[{item['video_id']} | {item['start_time']}-{item['end_time']}] "
+                f"[{item['video_id']}] "
                 f"score={item['score']:.4f}"
             )
 
