@@ -12,9 +12,7 @@ class AnswerGenerator:
     def _build_prompt(question: str, contexts: list[dict]) -> str:
         context_blocks = []
         for idx, c in enumerate(contexts, start=1):
-            context_blocks.append(
-                f"[{idx}] {c['text']} (video_id={c['video_id']}, time={c['start_time']}-{c['end_time']})"
-            )
+            context_blocks.append(f"[{idx}] {c['text']} (video_id={c['video_id']})")
 
         joined = "\n".join(context_blocks)
         return (
@@ -24,7 +22,7 @@ class AnswerGenerator:
             "I do not have enough context from the video to answer that confidently.\n\n"
             f"Question: {question}\n\n"
             f"Context snippets:\n{joined}\n\n"
-            "Provide a concise answer with citations like [video_id | start-end]."
+            "Provide a concise, direct answer focused only on relevant facts."
         )
 
     def generate_answer(self, question: str, contexts: list[dict]) -> str:
@@ -43,7 +41,6 @@ class AnswerGenerator:
                 c = contexts[0]
                 return (
                     "Based on retrieved transcript snippets: "
-                    f"{c['text'][:240]} "
-                    f"[{c['video_id']} | {c['start_time']}-{c['end_time']}]"
+                    f"{c['text'][:240]}"
                 )
             return "I do not have enough context from the video to answer that confidently."
