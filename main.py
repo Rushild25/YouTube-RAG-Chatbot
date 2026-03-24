@@ -7,13 +7,11 @@ from ingestion.transcript_processor import normalize_transcript_lines
 from ingestion.youtube_loader import fetch_transcript
 from llm.generator import AnswerGenerator
 from retrieval.retriever import Retriever
-from utils.helpers import build_chunk_id, extract_youtube_video_id
+from utils.helpers import build_chunk_id
 from vectorstore.qdrant_client import QdrantVectorStore
 
 
 def process_video(url: str) -> tuple[str, int] | None:
-    # Keep robust ID extraction for early URL validation.
-    _ = extract_youtube_video_id(url)
     raw_items, lang_code, lang_label, video_id = fetch_transcript(url)
 
     # print("Language: ", lang_code)
