@@ -17,7 +17,7 @@ class Settings:
     ).strip()
     llm_model: str = os.getenv("LLM_MODEL", "HuggingFaceH4/zephyr-7b-beta").strip()
 
-    chunk_size: int = int(os.getenv("CHUNK_SIZE", "900"))
+    chunk_size: int = int(os.getenv("CHUNK_SIZE", "650"))
     chunk_overlap: int = int(os.getenv("CHUNK_OVERLAP", "120"))
     embedding_batch_size: int = int(os.getenv("EMBED_BATCH_SIZE", "64"))
     top_k: int = int(os.getenv("TOP_K", "5"))
