@@ -1,0 +1,10 @@
+python-dotenv
+langchain-core
+langchain-community
+langchain-huggingface
+langchain-text-splitters
+yt-dlp
+requests
+huggingface-hub
+qdrant-client
+numpy
