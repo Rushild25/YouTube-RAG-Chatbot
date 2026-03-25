@@ -7,9 +7,8 @@ from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
 
 class AnswerGenerator:
     def __init__(self) -> None:
-        llm=HuggingFaceEndpoint(
+        llm = HuggingFaceEndpoint(
             repo_id=SETTINGS.llm_model,
-            model=SETTINGS.llm_model,
             task="text-generation",
             huggingfacehub_api_token=SETTINGS.huggingface_api_key or None,
             max_new_tokens=220,
