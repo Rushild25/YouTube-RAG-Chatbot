@@ -7,6 +7,10 @@ class EmbeddingService:
         self.model_name = model_name
         self._model = HuggingFaceEmbeddings(model_name=model_name)
 
+    @property
+    def embeddings(self) -> HuggingFaceEmbeddings:
+        return self._model
+
     def embed_texts(self, texts: list[str], batch_size: int = 64) -> np.ndarray:
         vectors = self._model.embed_documents(texts)
         matrix = np.asarray(vectors, dtype=np.float32)
