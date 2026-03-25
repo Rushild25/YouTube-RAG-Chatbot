@@ -1,6 +1,6 @@
 from __future__ import annotations
-
 from config import SETTINGS
+from langchain_core.documents import Document
 from ingestion.chunking import chunk_transcript
 from ingestion.embedding import EmbeddingService
 from ingestion.transcript_processor import normalize_transcript_lines
@@ -31,33 +31,32 @@ def process_video(url: str) -> tuple[str, int] | None:
         raise RuntimeError("No chunks generated from transcript")
 
     embedding_service = EmbeddingService(SETTINGS.embedding_model)
-    vectors = embedding_service.embed_texts([chunk.text for chunk in chunks], batch_size=SETTINGS.embedding_batch_size)
+    store = QdrantVectorStore(embeddings=embedding_service.embeddings)
 
-    records: list[dict] = []
-    for idx, (chunk, vector) in enumerate(zip(chunks, vectors)):
+    documents: list[Document] = []
+    ids: list[str] = []
+    for idx, chunk in enumerate(chunks):
         source_id = build_chunk_id(video_id, idx, chunk.text)
-        records.append(
-            {
-                "id": source_id,
-                "embedding": vector.tolist(),
-                "metadata": {
+        ids.append(source_id)
+        documents.append(
+            Document(
+                page_content=chunk.text,
+                metadata={
                     "video_id": video_id,
                     "chunk_id": source_id,
-                    "text": chunk.text,
                     "language_detected": lang_code,
                     "language_label": lang_label,
                 },
-            }
+            )
         )
 
-    store = QdrantVectorStore()
-    store.upsert(records)
-    return video_id, len(records)
+    store.upsert_documents(documents=documents, ids=ids)
+    return video_id, len(documents)
 
 
 def query_loop(video_id: str) -> None:
     embedding_service = EmbeddingService(SETTINGS.embedding_model)
-    retriever = Retriever(embedding_service=embedding_service, vectorstore=QdrantVectorStore())
+    retriever = Retriever(vectorstore=QdrantVectorStore(embeddings=embedding_service.embeddings))
     generator = AnswerGenerator()
 
     print("\nAsk questions about the video. Type 'exit' to stop.")
@@ -77,8 +76,7 @@ def query_loop(video_id: str) -> None:
         print(f"\nAnswer: {answer}")
         for item in retrieved:
             print(
-                f"[{item['video_id']}] "
-                f"score={item['score']:.4f}"
+                f"[{item['video_id']}]"
             )
 
 
