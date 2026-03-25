@@ -1,41 +1,44 @@
 from __future__ import annotations
-from huggingface_hub import InferenceClient
 from config import SETTINGS
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_huggingface import ChatHuggingFace, HuggingFaceEndpoint
 
 
 class AnswerGenerator:
     def __init__(self) -> None:
-        self.client = InferenceClient(api_key=SETTINGS.huggingface_api_key)
-        self.model = SETTINGS.llm_model
-
-    @staticmethod
-    def _build_prompt(question: str, contexts: list[dict]) -> str:
-        context_blocks = []
-        for idx, c in enumerate(contexts, start=1):
-            context_blocks.append(f"[{idx}] {c['text']} (video_id={c['video_id']})")
-
-        joined = "\n".join(context_blocks)
-        return (
+        llm=HuggingFaceEndpoint(
+            repo_id=SETTINGS.llm_model,
+            model=SETTINGS.llm_model,
+            task="text-generation",
+            huggingfacehub_api_token=SETTINGS.huggingface_api_key or None,
+            max_new_tokens=220,
+            temperature=0.1,
+            do_sample=False,
+        )
+        self.chat_model = ChatHuggingFace(llm=llm)
+        self.prompt = ChatPromptTemplate.from_template(
             "You are a strict grounded assistant. "
             "Answer ONLY from the provided context snippets. "
             "If context is insufficient, answer exactly: "
             "I do not have enough context from the video to answer that confidently.\n\n"
-            f"Question: {question}\n\n"
-            f"Context snippets:\n{joined}\n\n"
+            "Question: {question}\n\n"
+            "Context snippets:\n{context}\n\n"
             "Provide a concise, direct answer focused only on relevant facts."
         )
+        self.parser = StrOutputParser()
+
+    def _build_context(self, contexts: list[dict]) -> str:
+        context_blocks = []
+        for idx, c in enumerate(contexts, start=1):
+            context_blocks.append(f"[{idx}] {c['text']} (video_id={c['video_id']})")
+        return "\n".join(context_blocks)
 
     def generate_answer(self, question: str, contexts: list[dict]) -> str:
-        prompt = self._build_prompt(question, contexts)
+        context_text = self._build_context(contexts)
+        chain = self.prompt | self.chat_model | self.parser
         try:
-            messages = [{"role": "user", "content": prompt}]
-            output = self.client.chat_completion(
-                messages,
-                model=self.model,
-                max_tokens=220,
-                temperature=0.1,
-            )
-            return output.choices[0].message.content.strip()
+            return chain.invoke({"question": question, "context": context_text}).strip()
         except Exception:
             if contexts:
                 c = contexts[0]
