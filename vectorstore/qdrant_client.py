@@ -1,76 +1,49 @@
 from __future__ import annotations
 import uuid
+from langchain_core.documents import Document
+from langchain_core.embeddings import Embeddings
+from langchain_qdrant import QdrantVectorStore as LangChainQdrantVectorStore, RetrievalMode
 from qdrant_client import QdrantClient
-from qdrant_client.http import models
+from qdrant_client.http.models import Distance, FieldCondition, Filter, MatchValue, VectorParams
 from config import SETTINGS
 
 
 class QdrantVectorStore:
-    def __init__(self) -> None:
+    def __init__(self, embeddings: Embeddings) -> None:
         self.client = QdrantClient(path="./qdrant_data")
         self.collection = SETTINGS.qdrant_collection
+        self.embeddings = embeddings
 
-    def ensure_collection(self, vector_dim: int) -> None:
+        self._ensure_collection()
+        self.store = LangChainQdrantVectorStore(
+            client=self.client,
+            collection_name=self.collection,
+            embedding=self.embeddings,
+            retrieval_mode=RetrievalMode.DENSE,
+        )
+
+    def _ensure_collection(self) -> None:
         if self.client.collection_exists(self.collection):
             return
 
+        probe_vector = self.embeddings.embed_query("dimension_probe")
+        vector_dim = len(probe_vector)
+
         self.client.create_collection(
             collection_name=self.collection,
-            vectors_config=models.VectorParams(size=vector_dim, distance=models.Distance.COSINE),
+            vectors_config=VectorParams(size=vector_dim, distance=Distance.COSINE),
         )
 
-    def upsert(self, records: list[dict]) -> None:
-        if not records:
+    def upsert_documents(self, documents: list[Document], ids: list[str]) -> None:
+        if not documents:
             return
+        uuid_ids = [str(uuid.uuid5(uuid.NAMESPACE_URL, source_id)) for source_id in ids]
+        self.store.add_documents(documents=documents, ids=uuid_ids)
 
-        vector_dim = len(records[0]["embedding"])
-        self.ensure_collection(vector_dim)
-
-        points: list[models.PointStruct] = []
-        for item in records:
-            point_id = str(uuid.uuid5(uuid.NAMESPACE_URL, str(item["id"])))
-            points.append(
-                models.PointStruct(
-                    id=point_id,
-                    vector=item["embedding"],
-                    payload=item["metadata"],
-                )
-            )
-
-        self.client.upsert(collection_name=self.collection, points=points, wait=True)
-
-    def query(self, query_vector: list[float], top_k: int, video_id: str | None = None) -> list[dict]:
-        q_filter = None
+    def as_retriever(self, top_k: int, video_id: str | None = None):
+        search_kwargs: dict = {"k": top_k}
         if video_id:
-            q_filter = models.Filter(
-                must=[models.FieldCondition(key="video_id", match=models.MatchValue(value=video_id))]
+            search_kwargs["filter"] = Filter(
+                must=[FieldCondition(key="metadata.video_id", match=MatchValue(value=video_id))]
             )
-
-        if hasattr(self.client, "search"):
-            hits = self.client.search(
-                collection_name=self.collection,
-                query_vector=query_vector,
-                query_filter=q_filter,
-                limit=top_k,
-                with_payload=True,
-                with_vectors=False,
-            )
-        else:
-            response = self.client.query_points(
-                collection_name=self.collection,
-                query=query_vector,
-                query_filter=q_filter,
-                limit=top_k,
-                with_payload=True,
-                with_vectors=False,
-            )
-            hits = response.points
-
-        return [
-            {
-                "id": str(hit.id),
-                "score": float(hit.score),
-                "payload": hit.payload or {},
-            }
-            for hit in hits
-        ]
+        return self.store.as_retriever(search_kwargs=search_kwargs)
