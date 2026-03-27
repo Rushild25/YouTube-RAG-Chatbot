@@ -10,3 +10,5 @@ huggingface-hub
 qdrant-client
 numpy
 tiktoken
+uvicorn
+fastapi

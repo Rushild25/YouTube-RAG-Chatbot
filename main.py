@@ -9,6 +9,27 @@ from llm.generator import AnswerGenerator
 from retrieval.retriever import Retriever
 from utils.helpers import build_chunk_id
 from vectorstore.qdrant_client import QdrantVectorStore
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from typing import Optional
+
+app = FastAPI(title="YouTube RAG Chatbot API", version="1.0.0")
+
+class IngestRequest(BaseModel):
+    url: str
+
+class IngestResponse(BaseModel):
+    video_id: str
+    chunks_upserted: int
+
+class AskRequest(BaseModel):
+    video_id: str
+    question: str
+    top_k: Optional[int] = None
+
+class AskResponse(BaseModel):
+    answer: str
+    contexts: list[dict]
 
 
 def process_video(url: str) -> tuple[str, int] | None:
@@ -53,6 +74,53 @@ def process_video(url: str) -> tuple[str, int] | None:
     store.upsert_documents(documents=documents, ids=ids)
     return video_id, len(documents)
 
+@app.get("/health")
+def health() -> dict:
+    return{
+        "status": "ok"
+    }
+
+
+@app.post("/ingest", response_model=IngestResponse)
+def ingest_video(payload: IngestRequest) -> IngestResponse:
+    try:
+        processed = process_video(payload.url.strip())
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    if processed is None:
+        raise HTTPException(status_code=400, detail="Skipping Non-english video")
+    
+    video_id, chunks_upserted=processed
+    return IngestResponse(video_id=video_id, chunks_upserted=chunks_upserted)
+
+
+@app.post("/ask", response_model=AskResponse)
+def ask_question(payload: AskRequest) -> AskResponse:
+    question = payload.question.strip()
+    if not question:
+        raise HTTPException(status_code=400, detail="Question is required")
+    
+    embedding_service= EmbeddingService(SETTINGS.embedding_model)
+    retriever = Retriever(vectorstore=QdrantVectorStore(embeddings = embedding_service.embeddings))
+    generator = AnswerGenerator()
+
+    retrieved = retriever.retrieve(
+        question=question,
+        top_k=payload.top_k or SETTINGS.top_k,
+        video_id=payload.video_id
+    )
+
+    if not retrieved:
+        return AskResponse(
+            answer="I do not have enough context from the video to answer confidently.",
+            contexts=[]
+        )
+    
+    answer = generator.generate_answer(question, retrieved)
+    return AskResponse(
+        answer=answer,
+        contexts=retrieved
+    )
 
 def query_loop(video_id: str) -> None:
     embedding_service = EmbeddingService(SETTINGS.embedding_model)
