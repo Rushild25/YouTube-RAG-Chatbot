@@ -21,6 +21,7 @@ class IngestRequest(BaseModel):
 class IngestResponse(BaseModel):
     video_id: str
     chunks_upserted: int
+    language: str
 
 class AskRequest(BaseModel):
     video_id: str
@@ -32,7 +33,7 @@ class AskResponse(BaseModel):
     contexts: list[dict]
 
 
-def process_video(url: str) -> tuple[str, int] | None:
+def process_video(url: str) -> tuple[str, int, str] | None:
     raw_items, lang_code, lang_label, video_id = fetch_transcript(url)
 
     # print("Language: ", lang_code)
@@ -72,7 +73,7 @@ def process_video(url: str) -> tuple[str, int] | None:
         )
 
     store.upsert_documents(documents=documents, ids=ids)
-    return video_id, len(documents)
+    return video_id, len(documents), lang_code
 
 @app.get("/health")
 def health() -> dict:
@@ -90,8 +91,8 @@ def ingest_video(payload: IngestRequest) -> IngestResponse:
     if processed is None:
         raise HTTPException(status_code=400, detail="Skipping Non-english video")
     
-    video_id, chunks_upserted=processed
-    return IngestResponse(video_id=video_id, chunks_upserted=chunks_upserted)
+    video_id, chunks_upserted, lang_code=processed
+    return IngestResponse(video_id=video_id, chunks_upserted=chunks_upserted, language=lang_code)
 
 
 @app.post("/ask", response_model=AskResponse)
@@ -164,8 +165,8 @@ def main() -> None:
     if processed is None:
         return
 
-    video_id, count = processed
-    print(f"\nIngestion complete. video_id={video_id} chunks_upserted={count}")
+    video_id, count, lang_code = processed
+    print(f"\nIngestion complete. video_id={video_id} chunks_upserted={count} language={lang_code}")
 
     query_loop(video_id)
 
