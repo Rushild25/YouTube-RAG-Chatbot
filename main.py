@@ -37,9 +37,9 @@ def process_video(url: str) -> tuple[str, int] | None:
 
     # print("Language: ", lang_code)
 
-    if not lang_code.lower().startswith("en"):
-        print("Skipping non-english video")
-        return None
+    # if not lang_code.lower().startswith("en"):
+    #     print("Skipping non-english video")
+    #     return None
 
     lines = normalize_transcript_lines(raw_items)
 
