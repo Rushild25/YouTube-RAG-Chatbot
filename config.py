@@ -23,7 +23,7 @@ class Settings:
 
     llm_provider: str = os.getenv("LLM_PROVIDER", "huggingface").strip().lower()
     groq_api_key: str = os.getenv("GROQ_API_KEY")
-    grop_llm_model: str = os.getenv("GROQ_LLM_MODEL", "llama-3.3-70b-versatile").strip()
+    groq_llm_model: str = os.getenv("GROQ_LLM_MODEL", "llama-3.3-70b-versatile").strip()
 
     transcript_source_mode: str = os.getenv("TRANSCRIPT_SOURCE_MODE", "transcript-api").strip().lower()
 
