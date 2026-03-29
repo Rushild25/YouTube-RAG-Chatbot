@@ -25,7 +25,7 @@ class Settings:
     groq_api_key: str = os.getenv("GROQ_API_KEY")
     grop_llm_model: str = os.getenv("GROQ_LLM_MODEL", "llama-3.3-70b-versatile").strip()
 
-    transcript_source_model: str = os.getenv("TRANSCRIPT_SOURCE_MODE", "transcript-api").strip().lower()
+    transcript_source_mode: str = os.getenv("TRANSCRIPT_SOURCE_MODE", "transcript-api").strip().lower()
 
     groq_whisper_model: str = os.getenv("GROQ_WHISPER_MODEL", "whisper-large-v3-turbo").strip()
     temp_audio_dir: str = os.getenv("TEMP_AUDIO_DIR", "./tmp_audio").strip()
