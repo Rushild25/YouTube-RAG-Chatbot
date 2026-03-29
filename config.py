@@ -21,5 +21,15 @@ class Settings:
     embedding_batch_size: int = int(os.getenv("EMBED_BATCH_SIZE", 64))
     top_k: int = int(os.getenv("TOP_K", 5))
 
+    llm_provider: str = os.getenv("LLM_PROVIDER", "huggingface").strip().lower()
+    groq_api_key: str = os.getenv("GROQ_API_KEY")
+    grop_llm_model: str = os.getenv("GROQ_LLM_MODEL", "llama-3.3-70b-versatile").strip()
+
+    transcript_source_model: str = os.getenv("TRANSCRIPT_SOURCE_MODE", "transcript-api").strip().lower()
+
+    groq_whisper_model: str = os.getenv("GROQ_WHISPER_MODEL", "whisper-large-v3-turbo").strip()
+    temp_audio_dir: str = os.getenv("TEMP_AUDIO_DIR", "./tmp_audio").strip()
+    ffmpeg_path: str | None = os.getenv("FFMPEG_PATH") or None
+
 
 SETTINGS = Settings()
