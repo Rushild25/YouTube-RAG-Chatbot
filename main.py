@@ -5,7 +5,7 @@ from ingestion.chunking import chunk_transcript
 from ingestion.embedding import EmbeddingService
 from ingestion.transcript_processor import normalize_transcript_lines
 from ingestion.youtube_loader import fetch_transcript
-from llm.generator import AnswerGenerator
+from llm.generator import create_answer_generator
 from retrieval.retriever import Retriever
 from utils.helpers import build_chunk_id
 from vectorstore.qdrant_client import QdrantVectorStore
@@ -17,11 +17,13 @@ app = FastAPI(title="YouTube RAG Chatbot API", version="1.0.0")
 
 class IngestRequest(BaseModel):
     url: str
+    transcript_mode: Optional[str] = None
 
 class IngestResponse(BaseModel):
     video_id: str
     chunks_upserted: int
     language: str
+    transcript_mode: Optional[str] = None
 
 class AskRequest(BaseModel):
     video_id: str
@@ -33,7 +35,16 @@ class AskResponse(BaseModel):
     contexts: list[dict]
 
 
-def process_video(url: str) -> tuple[str, int, str] | None:
+def process_video(url: str, transcript_mode: str | None = None) -> tuple[str, int, str, str] | None:
+    selected_mode = (transcript_mode or SETTINGS.transcript_source_mode or "transcript-api").strip().lower()
+
+    if selected_mode == "transcript-api":
+        raw_items, lang_code, lang_label, video_id = fetch_transcript(url)
+    elif selected_mode == "groq-whisper":
+        raise RuntimeError("groq-whisper mode is not wired in yet.")
+    else:
+        raise ValueError(f"Unsupported transcript mode: {selected_mode}")
+    
     raw_items, lang_code, lang_label, video_id = fetch_transcript(url)
 
     # print("Language: ", lang_code)
@@ -73,7 +84,7 @@ def process_video(url: str) -> tuple[str, int, str] | None:
         )
 
     store.upsert_documents(documents=documents, ids=ids)
-    return video_id, len(documents), lang_code
+    return video_id, len(documents), lang_code, selected_mode
 
 @app.get("/health")
 def health() -> dict:
@@ -85,14 +96,22 @@ def health() -> dict:
 @app.post("/ingest", response_model=IngestResponse)
 def ingest_video(payload: IngestRequest) -> IngestResponse:
     try:
-        processed = process_video(payload.url.strip())
+        processed = process_video(payload.url.strip(), transcript_mode = payload.transcript_mode)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+    
     if processed is None:
         raise HTTPException(status_code=400, detail="Skipping Non-english video")
     
-    video_id, chunks_upserted, lang_code=processed
-    return IngestResponse(video_id=video_id, chunks_upserted=chunks_upserted, language=lang_code)
+    video_id, chunks_upserted, lang_code, transcript_source=processed
+    return IngestResponse(
+        video_id=video_id,
+        chunks_upserted=chunks_upserted,
+        language=lang_code,
+        transcript_source=transcript_source
+        )
 
 
 @app.post("/ask", response_model=AskResponse)
@@ -103,7 +122,12 @@ def ask_question(payload: AskRequest) -> AskResponse:
     
     embedding_service= EmbeddingService(SETTINGS.embedding_model)
     retriever = Retriever(vectorstore=QdrantVectorStore(embeddings = embedding_service.embeddings))
-    generator = AnswerGenerator()
+    try:
+        generator = create_answer_generator(SETTINGS.llm_provider)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except RuntimeError as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
     retrieved = retriever.retrieve(
         question=question,
@@ -126,7 +150,7 @@ def ask_question(payload: AskRequest) -> AskResponse:
 def query_loop(video_id: str) -> None:
     embedding_service = EmbeddingService(SETTINGS.embedding_model)
     retriever = Retriever(vectorstore=QdrantVectorStore(embeddings=embedding_service.embeddings))
-    generator = AnswerGenerator()
+    generator = create_answer_generator(SETTINGS.llm_provider)
 
     print("\nAsk questions about the video. Type 'exit' to stop.")
     while True:
@@ -154,8 +178,10 @@ def main() -> None:
     print("YouTube RAG Chatbot Backend (CLI)")
     print("=" * 80)
 
-    if not SETTINGS.huggingface_api_key:
-        print("Warning: HUGGINGFACE_API_KEY is empty. LLM output may fallback to extractive mode.")
+    if SETTINGS.llm_provider == "huggingface" and not SETTINGS.huggingface_api_key:
+        print("Warning: HUGGINGFACE_API_KEY is empty.")
+    if SETTINGS.llm_provider == "groq" and not SETTINGS.groq_api_key:
+        print("Warning: GROQ_API_KEY is empty.")
 
     url = input("Enter YouTube URL: ").strip()
     if not url:
