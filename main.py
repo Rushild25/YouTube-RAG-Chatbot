@@ -45,8 +45,6 @@ def process_video(url: str, transcript_mode: str | None = None) -> tuple[str, in
     else:
         raise ValueError(f"Unsupported transcript mode: {selected_mode}")
     
-    raw_items, lang_code, lang_label, video_id = fetch_transcript(url)
-
     # print("Language: ", lang_code)
 
     # if not lang_code.lower().startswith("en"):
