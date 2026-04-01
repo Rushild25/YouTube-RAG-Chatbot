@@ -1,6 +1,5 @@
 from __future__ import annotations
 from abc import ABC, abstractmethod
-from typing import Any
 from config import SETTINGS
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
@@ -24,14 +23,14 @@ class BaseAnswerGenerator(ABC):
     def _build_context(self, contexts: list[dict]) -> str:
         blocks = []
         for idx, item in enumerate(contexts, start=1):
-            blocks.append(f"[{idx}] {item['text']} (video_idx-{item['video_id']})")
+            blocks.append(f"[{idx}] {item['text']} (video_id={item['video_id']})")
         return "\n".join(blocks)
     
     def _fallback_answer(self, contexts: list[dict]) -> str:
         if contexts:
             first = contexts[0]
-            return f"Based on retrieved snippets: {first['text'][:240]}"
-        return "I do not have enough context form the cideo to answer that confidently."
+            return f"Based on retrieved transcript snippets: {first['text'][:240]}"
+        return "I do not have enough context from the video to answer that confidently."
     
     @abstractmethod
     def generate_answer(self, question:str, contexts: list[dict]) -> str:
@@ -76,7 +75,7 @@ class GroqAnswerGenerator(BaseAnswerGenerator):
         self.client = Groq(api_key=SETTINGS.groq_api_key)
 
     def generate_answer(self, question:str, contexts: list[dict]) -> str:
-        context_text = self._build_context(contexts) #what was the existing context like that we had to pass it through a custom _build_context layer what does it do differently that helped us. We could have kept it as it is... why did we do it?
+        context_text = self._build_context(contexts)
         user_prompt = (
             f"Question: {question}\n\n"
             f"Context Snippets: {context_text}\n\n"
@@ -91,7 +90,7 @@ class GroqAnswerGenerator(BaseAnswerGenerator):
                 messages=[
                     {"role": "system", "content": SYSTEM_PROMPT.replace("{question}", "").replace("{context}", "")},
                     {"role": "user", "content": user_prompt}
-                ]#tf is this message block
+                ]
             )
             text = (response.choices[0].message.content or "").strip()
             if not text:
