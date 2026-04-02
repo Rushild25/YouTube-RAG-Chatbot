@@ -5,6 +5,7 @@ from ingestion.chunking import chunk_transcript
 from ingestion.embedding import EmbeddingService
 from ingestion.transcript_processor import normalize_transcript_lines
 from ingestion.youtube_loader import fetch_transcript
+from ingestion.groq_whisper import transcribe_with_groq_whisper
 from llm.generator import create_answer_generator
 from retrieval.retriever import Retriever
 from utils.helpers import build_chunk_id
@@ -41,7 +42,7 @@ def process_video(url: str, transcript_mode: str | None = None) -> tuple[str, in
     if selected_mode == "transcript-api":
         raw_items, lang_code, lang_label, video_id = fetch_transcript(url)
     elif selected_mode == "groq-whisper":
-        raise RuntimeError("groq-whisper mode is not wired in yet.")
+        raw_items, lang_code, lang_label, video_id = transcribe_with_groq_whisper(url)
     else:
         raise ValueError(f"Unsupported transcript mode: {selected_mode}")
 
@@ -71,6 +72,7 @@ def process_video(url: str, transcript_mode: str | None = None) -> tuple[str, in
                     "chunk_id": source_id,
                     "language_detected": lang_code,
                     "language_label": lang_label,
+                    "transcript_source": selected_mode
                 },
             )
         )
