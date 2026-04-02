@@ -23,7 +23,7 @@ class IngestResponse(BaseModel):
     video_id: str
     chunks_upserted: int
     language: str
-    transcript_mode: Optional[str] = None
+    transcript_source: str
 
 class AskRequest(BaseModel):
     video_id: str
@@ -44,12 +44,6 @@ def process_video(url: str, transcript_mode: str | None = None) -> tuple[str, in
         raise RuntimeError("groq-whisper mode is not wired in yet.")
     else:
         raise ValueError(f"Unsupported transcript mode: {selected_mode}")
-    
-    # print("Language: ", lang_code)
-
-    # if not lang_code.lower().startswith("en"):
-    #     print("Skipping non-english video")
-    #     return None
 
     lines = normalize_transcript_lines(raw_items)
 
@@ -189,8 +183,11 @@ def main() -> None:
     if processed is None:
         return
 
-    video_id, count, lang_code = processed
-    print(f"\nIngestion complete. video_id={video_id} chunks_upserted={count} language={lang_code}")
+    video_id, count, lang_code, transcript_source = processed
+    print(
+        f"\nIngestion complete. video_id={video_id} chunks_upserted={count} "
+        f"language={lang_code} transcript_source={transcript_source}"
+    )
 
     query_loop(video_id)
 
