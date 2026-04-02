@@ -13,3 +13,4 @@ uvicorn
 fastapi
 groq
 yt-dlp
+ffmpeg
