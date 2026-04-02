@@ -11,3 +11,5 @@ numpy
 tiktoken
 uvicorn
 fastapi
+groq
+yt-dlp
