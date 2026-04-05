@@ -6,7 +6,7 @@ from yt_dlp import YoutubeDL
 def _ensure_ffmpeg_available(ffmpeg_path: str | None=None) -> None:
     if ffmpeg_path:
         candidate = Path(ffmpeg_path)
-        if not candidate.exists:
+        if not candidate.exists():
             raise RuntimeError(f"FFMPEG_PATH does not exist: {ffmpeg_path}")
         return
     
