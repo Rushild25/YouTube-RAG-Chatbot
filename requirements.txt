@@ -14,3 +14,5 @@ fastapi
 groq
 yt-dlp
 ffmpeg
+streamlit
+requests
