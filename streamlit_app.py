@@ -113,7 +113,7 @@ if st.button("Ask"):
             ok, result = api_ask(base_url, ask_video_id, question, int(ask_top_k), int(timeout_s))
         if ok:
             answer = result.get("answer", "")
-            contexts = result.get("context", [])
+            contexts = result.get("contexts", [])
             st.success("Answer generated")
             st.markdown("Answer")
             st.write(answer)
