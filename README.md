@@ -28,7 +28,7 @@ A Retrieval-Augmented Generation (RAG) chatbot for YouTube videos using:
 
 ---
 
-## Stickers + Features
+## Features
 
 - Ingest a YouTube URL and chunk transcript text for retrieval
 - Ask grounded questions against ingested video context
@@ -223,21 +223,6 @@ python -m compileall main.py streamlit_app.py ingestion llm retrieval vectorstor
 
 ---
 
-## Security Notes
-
-- Never commit real API keys to git
-- Keep `.env` out of version control
-- Rotate keys immediately if exposed
-
----
-
-## License
-
-Add your preferred license information here.
-
----
-
 <p align="center">
-  <b>Have fun building.</b><br/>
   <sub>FastAPI + Streamlit + Qdrant + Groq Whisper</sub>
 </p>
