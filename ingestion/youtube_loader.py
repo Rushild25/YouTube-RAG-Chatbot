@@ -5,6 +5,22 @@ from typing import Any
 from langchain_core.documents import Document
 from youtube_transcript_api import YouTubeTranscriptApi
 
+class TranscriptUnavailableError(RuntimeError):
+    pass
+
+def _is_transcript_unavailable_error(exc: Exception) -> bool:
+    text = str(exc).lower()
+    markers = [
+        "transcript",
+        "no transcript",
+        "transcriptsdisabled",
+        "transcripts disabled",
+        "subtitles are disabled",
+        "not available",
+        "could not retrieve a transcript",
+        "notranscriptfound"
+    ]
+    return any(marker in text for marker in markers)
 
 def _extract_video_id(youtube_url: str) -> str:
     parsed = urlparse(youtube_url)
@@ -31,27 +47,32 @@ def _extract_video_id(youtube_url: str) -> str:
 
 
 def _get_entries(video_id: str, preferred_languages: list[str]) -> tuple[list[dict[str, Any]], str]:
-    api = YouTubeTranscriptApi()
-    if hasattr(api, "list"):
-        transcripts = api.list(video_id)
-    elif hasattr(api, "list_transcripts"):
-        transcripts = api.list_transcripts(video_id)
-    else:
-        transcripts = YouTubeTranscriptApi.list_transcripts(video_id)
+    try:
+        api = YouTubeTranscriptApi()
+        if hasattr(api, "list"):
+            transcripts = api.list(video_id)
+        elif hasattr(api, "list_transcripts"):
+            transcripts = api.list_transcripts(video_id)
+        else:
+            transcripts = YouTubeTranscriptApi.list_transcripts(video_id)
 
-    available_languages = [item.language_code for item in transcripts]
+        available_languages = [item.language_code for item in transcripts]
 
-    if preferred_languages:
-        try:
-            transcript = transcripts.find_transcript(preferred_languages)
-        except Exception:
+        if preferred_languages:
+            try:
+                transcript = transcripts.find_transcript(preferred_languages)
+            except Exception:
+                transcript = transcripts.find_transcript(available_languages)
+        else:
             transcript = transcripts.find_transcript(available_languages)
-    else:
-        transcript = transcripts.find_transcript(available_languages)
 
-    fetched = transcript.fetch()
-    entries = fetched.to_raw_data() if hasattr(fetched, "to_raw_data") else fetched
-    return entries, str(transcript.language_code)
+        fetched = transcript.fetch()
+        entries = fetched.to_raw_data() if hasattr(fetched, "to_raw_data") else fetched
+        return entries, str(transcript.language_code)
+    except Exception as e:
+        if _is_transcript_unavailable_error(e):
+            raise TranscriptUnavailableError(str(e)) from e
+        raise
 
 
 @dataclass

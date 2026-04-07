@@ -4,7 +4,7 @@ from langchain_core.documents import Document
 from ingestion.chunking import chunk_transcript
 from ingestion.embedding import EmbeddingService
 from ingestion.transcript_processor import normalize_transcript_lines
-from ingestion.youtube_loader import fetch_transcript
+from ingestion.youtube_loader import fetch_transcript, TranscriptUnavailableError
 from ingestion.groq_whisper import transcribe_with_groq_whisper
 from llm.generator import create_answer_generator
 from retrieval.retriever import Retriever
@@ -15,6 +15,16 @@ from pydantic import BaseModel
 from typing import Optional
 
 app = FastAPI(title="YouTube RAG Chatbot API", version="1.0.0")
+
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class IngestRequest(BaseModel):
     url: str
@@ -37,14 +47,21 @@ class AskResponse(BaseModel):
 
 
 def process_video(url: str, transcript_mode: str | None = None) -> tuple[str, int, str, str] | None:
-    selected_mode = (transcript_mode or SETTINGS.transcript_source_mode or "transcript-api").strip().lower()
+    selected_mode = (transcript_mode or SETTINGS.transcript_source_mode or "auto").strip().lower()
 
+    if selected_mode not in {"auto", "transcript-api", "groq-whisper"}:
+        raise ValueError(f"Unsupported transcript mode: {selected_mode}")
     if selected_mode == "transcript-api":
         raw_items, lang_code, lang_label, video_id = fetch_transcript(url)
     elif selected_mode == "groq-whisper":
         raw_items, lang_code, lang_label, video_id = transcribe_with_groq_whisper(url)
     else:
-        raise ValueError(f"Unsupported transcript mode: {selected_mode}")
+        try:
+            raw_items, lang_code, lang_label, video_id = fetch_transcript(url)
+            selected_mode = "transcript-api"
+        except TranscriptUnavailableError:
+            raw_items, lang_code, lang_label, video_id = transcribe_with_groq_whisper(url)
+            selected_mode = "groq-whisper"
 
     lines = normalize_transcript_lines(raw_items)
 

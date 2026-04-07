@@ -62,7 +62,7 @@ with st.sidebar:
     st.subheader("Backend Settings")
     base_url_input = st.text_input("FastAPI Base URL", value = "http://127.0.0.1:8000")
     base_url = _normalize_base_url(base_url_input)
-    timeout_s = st.number_input("Request Timeout (seconds)", min_value=5, max_value=600, value = 120, step=5)
+    timeout_s = st.number_input("Request Timeout (seconds)", min_value=5, max_value=600, value = 600, step=5)
     ask_top_k = st.number_input("Ask top_k", min_value=1, max_value=20, value = 5, step=1)
 
     if st.button("Health Check"):
@@ -76,7 +76,7 @@ st.divider()
 
 st.subheader("1. Ingest Video")
 ingest_url = st.text_input("YouTube URL", value="", placeholder="https://www.youtube.com/watch?v=...")
-transcript_mode = st.selectbox("Transcript Mode", options=["transcript-api", "groq-whisper"], index=0)
+transcript_mode = st.selectbox("Transcript Mode", options=["auto", "transcript-api", "groq-whisper"], index=0)
 
 if st.button("Ingest"):
     if not ingest_url.strip():
